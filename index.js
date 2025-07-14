@@ -9,6 +9,8 @@ const teamRoutes = require('./routes/teamRoutes');
 const documentRoutes = require('./routes/documentRoutes');
 const testimonialRoutes = require('./routes/testimonialsRoutes');
 const aspireRoutes = require('./routes/aspireRoutes');
+const caseStudyRoutes = require('./routes/casestudyRoutes');
+const riskRoutes = require('./routes/riskRegisterRoutes');
 
 const app = express();
 const PORT = 4000;
@@ -28,6 +30,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/aspire', aspireRoutes);
+app.use('/api/case-studies', caseStudyRoutes);
+app.use('/api/risk-register', riskRoutes);
 
 // Server start
 app.listen(PORT, () => {
