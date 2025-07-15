@@ -2,6 +2,45 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const multer = require('multer');
+const path = require('path');
+
+// Configure file storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, './uploads'); // Ensure this directory exists
+  },
+  filename: function (req, file, cb) {
+    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, uniqueName + path.extname(file.originalname)); // e.g., 1720789928.jpg
+  }
+});
+const upload = multer({ storage: storage });
+
+// POST: Add new document with file upload
+router.post('/', upload.single('upload'), (req, res) => {
+  const { file_name, related_to, type, region } = req.body;
+ const filePath = req.file ? req.file.filename : null;
+
+  if (!file_name || !related_to || !type || !region) {
+    return res.status(400).json({ error: 'All required fields must be filled.' });
+  }
+
+  // You can optionally store file.buffer to DB or save to disk
+  const sql = `
+    INSERT INTO documents (file_name, related_to, type, region, action, created_at)
+    VALUES (?, ?, ?, ?, ?, NOW())`;
+ const values = [file_name, related_to, type, region, filePath];
+
+  db.query(sql, values, (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      res.status(201).json({
+        message: 'Document added successfully',
+        serial_no: result.insertId
+      });
+    }
+  );
+});
 
 // GET all documents (with iconUrl from document_type)
 router.get('/', (req, res) => {
@@ -15,37 +54,6 @@ router.get('/', (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     res.status(200).json(results);
   });
-});
-
-// Configure file storage
-const storage = multer.memoryStorage(); // or diskStorage({ ... })
-const upload = multer({ storage: storage });
-
-// POST: Add new document with file upload
-router.post('/', upload.single('action'), (req, res) => {
-  const { file_name, related_to, type, region } = req.body;
-  const file = req.file;
-
-  if (!file_name || !file) {
-    return res.status(400).json({ error: 'file_name and action (file) are required' });
-  }
-
-  // You can optionally store file.buffer to DB or save to disk
-  const sql = `
-    INSERT INTO documents (file_name, related_to, type, region, action)
-    VALUES (?, ?, ?, ?, ?)`;
-  db.query(
-    sql,
-    [file_name, related_to, type, region, file.originalname], // You may store file path instead
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-
-      res.status(201).json({
-        message: 'Document added successfully',
-        serial_no: result.insertId
-      });
-    }
-  );
 });
 
 // get regions

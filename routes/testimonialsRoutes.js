@@ -135,5 +135,14 @@ router.get('/months', (req, res) => {
   });
 });
 
+router.get('/uploads/:filename', (req, res) => {
+  const filePath = path.join(__dirname, 'uploads', req.params.filename);
+  res.download(filePath, err => {
+    if (err) {
+      console.error('Download error:', err);
+      res.status(500).send('File download failed');
+    }
+  });
+});
 
 module.exports = router;
