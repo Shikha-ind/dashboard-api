@@ -1,4 +1,3 @@
-// Required modules
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
@@ -6,8 +5,10 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const auth = require('../middleware/auth');
 const crypto = require('crypto');
+require('dotenv').config();
+const {loginLimiter,forgotPasswordLimiter} = require('../middleware/rateLimiters')
 
-const SECRET_KEY = 'mysecretkey';
+const SECRET_KEY = process.env.JWT_SECRET;
 
 // -------------------- GET ALL USERS (WITH ROLE NAME) --------------------
 router.get('/', auth, (req, res) => {
@@ -17,15 +18,15 @@ router.get('/', auth, (req, res) => {
     JOIN user_role ON users.role = user_role.role
   `;
   db.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ error: err });
+    if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
 });
 
-// -------------------- GET ALL ROLES (for UI dropdown) --------------------
+// -------------------- GET ALL ROLES --------------------
 router.get('/roles', (req, res) => {
   db.query('SELECT id, role FROM user_role', (err, results) => {
-    if (err) return res.status(500).json({ error: err });
+    if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
 });
@@ -58,7 +59,7 @@ router.post('/', (req, res) => {
   ];
 
   db.query(sql, values, (err) => {
-    if (err) return res.status(500).json({ error: err });
+    if (err) return res.status(500).json({ error: err.message });
     res.json({ message: 'User created successfully' });
   });
 });
@@ -87,7 +88,7 @@ router.put('/:id', (req, res) => {
   ];
 
   db.query(sql, values, (err) => {
-    if (err) return res.status(500).json({ error: err });
+    if (err) return res.status(500).json({ error: err.message });
     res.json({ message: 'User updated successfully' });
   });
 });
@@ -96,16 +97,14 @@ router.put('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   const id = req.params.id;
   db.query('DELETE FROM users WHERE id = ?', [id], (err) => {
-    if (err) return res.status(500).json({ error: err });
+    if (err) return res.status(500).json({ error: err.message });
     res.json({ message: 'User deleted successfully' });
   });
 });
 
-
-// -------------------- LOGIN (with role from joined table) --------------------
-router.post('/login', (req, res) => {
+// -------------------- LOGIN --------------------
+router.post('/login', loginLimiter, (req, res) => {
   const { emailId, password } = req.body;
-
   if (!emailId || !password)
     return res.status(400).json({ message: 'Email and password are required' });
 
@@ -115,14 +114,18 @@ router.post('/login', (req, res) => {
     JOIN user_role ON users.role = user_role.role 
     WHERE users.emailId = ?
   `;
-
+  
   db.query(sql, [emailId], (err, results) => {
-    if (err) return res.status(500).json({ error: err });
+    if (err) return res.status(500).json({ error: err.message });
+
     const user = results[0];
+    
     if (!user) return res.status(401).json({ message: 'User not found' });
 
     bcrypt.compare(password, user.password, (err, isMatch) => {
-      if (err || !isMatch) return res.status(401).json({ message: 'Invalid credentials' });
+      if (err || !isMatch) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
 
       const token = jwt.sign(
         {
@@ -138,18 +141,17 @@ router.post('/login', (req, res) => {
     });
   });
 });
-
-
 // -------------------- FORGOT PASSWORD --------------------
-router.post('/forgot-password', (req, res) => {
+router.post('/forgot-password',forgotPasswordLimiter,(req, res) => {
   const { emailId } = req.body;
 
   if (!emailId) return res.status(400).json({ error: 'Email ID is required' });
 
   const token = crypto.randomBytes(32).toString('hex');
-  const expiry = new Date(Date.now() + 3600000); // 1 hour from now
+  const expiry = new Date(Date.now() + 3600000); // 1 hour
 
   const sql = `UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE emailId = ?`;
+
   db.query(sql, [token, expiry, emailId], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
 
@@ -157,8 +159,8 @@ router.post('/forgot-password', (req, res) => {
       return res.status(404).json({ message: 'Email ID not found' });
     }
 
-    // Log reset link (can be emailed in real-world)
-    console.log(`Reset Password Link: http://localhost:4200/reset-password/${token}`);
+    // Log reset link (ideally send via email)
+    console.log(`🔗 Reset Password Link: http://localhost:4200/reset-password/${token}`);
 
     res.json({ message: 'Reset link has been sent.' });
   });

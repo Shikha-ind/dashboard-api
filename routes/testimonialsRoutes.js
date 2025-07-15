@@ -4,27 +4,25 @@ const multer = require('multer');
 const db = require('../config/db');
 const path = require('path');
 
+// Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, './uploads'); // Ensure this directory exists
+  destination: (req, file, cb) => cb(null, './uploads'),
+  filename: (req, file, cb) => {
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
   },
-  filename: function (req, file, cb) {
-    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueName + path.extname(file.originalname)); // e.g., 1720789928.jpg
-  }
 });
+const upload = multer({ storage });
 
-const upload = multer({ storage: storage });
-
-// GET all testimonials
+// -------------------- GET ALL TESTIMONIALS --------------------
 router.get('/', (req, res) => {
   db.query('SELECT * FROM testimonials', (err, results) => {
-    if (err) return res.status(500).json({ error: err });
+    if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
 });
 
-// get regions
+// -------------------- GET REGIONS --------------------
 router.get('/regions', (req, res) => {
   db.query('SELECT region_name FROM region', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -32,7 +30,7 @@ router.get('/regions', (req, res) => {
   });
 });
 
-//get service_type
+// -------------------- GET SERVICE TYPES --------------------
 router.get('/service-types', (req, res) => {
   db.query('SELECT service_name FROM service_type', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -40,7 +38,7 @@ router.get('/service-types', (req, res) => {
   });
 });
 
-// Toggle like per user
+// -------------------- TOGGLE LIKE --------------------
 router.post('/like', async (req, res) => {
   const { user_id, t_id } = req.body;
 
@@ -49,51 +47,27 @@ router.post('/like', async (req, res) => {
   }
 
   try {
-    // Check if already liked
     const [existing] = await db.promise().query(
       'SELECT * FROM testimonial_likes WHERE user_id = ? AND t_id = ?',
       [user_id, t_id]
     );
 
-    console.log('Like check:', { user_id, t_id, existing });
-
     if (existing.length > 0) {
-      // Unlike (remove entry)
-      await db.promise().query(
-        'DELETE FROM testimonial_likes WHERE user_id = ? AND t_id = ?',
-        [user_id, t_id]
-      );
-
-      // Decrease like count
-      await db.promise().query(
-        'UPDATE testimonials SET likes = likes - 1 WHERE t_id = ?',
-        [t_id]
-      );
-
+      await db.promise().query('DELETE FROM testimonial_likes WHERE user_id = ? AND t_id = ?', [user_id, t_id]);
+      await db.promise().query('UPDATE testimonials SET likes = likes - 1 WHERE t_id = ?', [t_id]);
       return res.json({ liked: false });
     } else {
-      // Like (insert entry)
-      await db.promise().query(
-        'INSERT INTO testimonial_likes (user_id, t_id) VALUES (?, ?)',
-        [user_id, t_id]
-      );
-
-      // Increase like count
-      await db.promise().query(
-        'UPDATE testimonials SET likes = likes + 1 WHERE t_id = ?',
-        [t_id]
-      );
-
+      await db.promise().query('INSERT INTO testimonial_likes (user_id, t_id) VALUES (?, ?)', [user_id, t_id]);
+      await db.promise().query('UPDATE testimonials SET likes = likes + 1 WHERE t_id = ?', [t_id]);
       return res.json({ liked: true });
     }
   } catch (err) {
-    console.error('Like toggle error:', err);
+    console.error('❌ Like toggle error:', err);
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-
-// POST: Submit a new testimonial
+// -------------------- CREATE TESTIMONIAL --------------------
 router.post('/', upload.single('upload'), (req, res) => {
   const { from, to, service_name, region_name, content } = req.body;
   const filePath = req.file ? req.file.filename : null;
@@ -103,16 +77,18 @@ router.post('/', upload.single('upload'), (req, res) => {
   }
 
   const sql = `
-    INSERT INTO testimonials (content, \`to\`, \`from\`, service_name, region_name, created_at, upload_path)
+    INSERT INTO testimonials 
+      (content, \`to\`, \`from\`, service_name, region_name, created_at, upload_path)
     VALUES (?, ?, ?, ?, ?, NOW(), ?)
   `;
   const values = [content, to, from, service_name, region_name, filePath];
 
   db.query(sql, values, (err, result) => {
     if (err) {
-      console.error('DB insert error:', err);
+      console.error('❌ DB insert error:', err);
       return res.status(500).json({ error: 'Database insert failed' });
     }
+
     res.status(201).json({
       message: 'Testimonial added successfully',
       testimonial_id: result.insertId
@@ -120,7 +96,7 @@ router.post('/', upload.single('upload'), (req, res) => {
   });
 });
 
-// Get distinct months from testimonial table
+// -------------------- GET DISTINCT MONTHS --------------------
 router.get('/months', (req, res) => {
   const query = `
     SELECT DISTINCT 
@@ -131,9 +107,8 @@ router.get('/months', (req, res) => {
   `;
   db.query(query, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(results); // [{ value: "2024-07", label: "July 2024" }, ...]
+    res.json(results); // e.g., [{ value: "2024-07", label: "July 2024" }]
   });
 });
-
 
 module.exports = router;

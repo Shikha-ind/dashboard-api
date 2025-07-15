@@ -1,8 +1,7 @@
-
 const express = require('express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
 const path = require('path');
+const rateLimit = require('express-rate-limit')
 
 const userRoutes = require('./routes/users');
 const teamRoutes = require('./routes/teamRoutes');
@@ -15,25 +14,30 @@ const riskRoutes = require('./routes/riskRegisterRoutes');
 const app = express();
 const PORT = 4000;
 
-// Middlewares
+// Middleware
 app.use(cors());
-app.use(bodyParser.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use('/api/testimonials', testimonialRoutes);
+app.use(express.urlencoded({ extended: true }));
 
-// Static folder for serving uploaded files
+//Moniter / block the proxy server after attempting password reset
+app.set('trust proxy',1); 
+
+// Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/testimonials', testimonialRoutes);
 app.use('/api/aspire', aspireRoutes);
 app.use('/api/case-studies', caseStudyRoutes);
 app.use('/api/risk-register', riskRoutes);
 
-// Server start
+
+// Start the server
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`✅ Server is running at http://localhost:${PORT}`);
 });
+
+
