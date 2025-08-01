@@ -62,7 +62,11 @@ router.post('/like', async (req, res) => {
       return res.json({ liked: true });
     }
   } catch (err) {
+<<<<<<< HEAD
     console.error(' Like toggle error:', err);
+=======
+    console.error('❌ Like toggle error:', err);
+>>>>>>> dfad0aac13c9f894441de146218bfe07c7d9a5bc
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -85,7 +89,11 @@ router.post('/', upload.single('upload'), (req, res) => {
 
   db.query(sql, values, (err, result) => {
     if (err) {
+<<<<<<< HEAD
       console.error(' DB insert error:', err);
+=======
+      console.error('❌ DB insert error:', err);
+>>>>>>> dfad0aac13c9f894441de146218bfe07c7d9a5bc
       return res.status(500).json({ error: 'Database insert failed' });
     }
 
@@ -108,6 +116,7 @@ router.get('/months', (req, res) => {
   db.query(query, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results); // e.g., [{ value: "2024-07", label: "July 2024" }]
+<<<<<<< HEAD
   });
 });
 
@@ -119,8 +128,9 @@ router.get('/uploads/:filename', (req, res) => {
       console.error('Download error:', err);
       res.status(500).send('File download failed');
     }
+=======
+>>>>>>> dfad0aac13c9f894441de146218bfe07c7d9a5bc
   });
 });
-
 
 module.exports = router;
