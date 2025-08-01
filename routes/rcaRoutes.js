@@ -17,21 +17,18 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 
-// GET all RCA entries
-// router.get('/', (req, res) => {
-//   db.query('SELECT * FROM rca ORDER BY created_at DESC', (err, results) => {
-//     if (err) return res.status(500).json({ error: err.message });
-//     res.json(results);
-//   });
-// });
-
 // GET all rca (with iconUrl from document_type)
 router.get('/', (req, res) => {
-  const sql = `
-    SELECT rc.*, dt.iconUrl
-    FROM rca rc
-    LEFT JOIN document_type dt ON rc.type = dt.document_name
-  `;
+const sql = `
+  SELECT 
+    rc.*, 
+    dt.iconUrl,
+    DATE_FORMAT(rc.created_at, '%Y-%m') AS month_value,
+    DATE_FORMAT(rc.created_at, '%M %Y') AS month_label
+  FROM rca rc
+  LEFT JOIN document_type dt ON rc.type = dt.document_name
+  ORDER BY rc.created_at DESC
+`;
 
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -39,18 +36,7 @@ router.get('/', (req, res) => {
   });
 });
 
-
-// GET RCA by ID
-router.get('/:id', (req, res) => {
-  const { id } = req.params;
-  db.query('SELECT * FROM rca WHERE rca_id = ?', [id], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (results.length === 0) return res.status(404).json({ message: 'RCA not found' });
-    res.json(results[0]);
-  });
-});
-
-// get regions
+//region
 router.get('/regions', (req, res) => {
   db.query('SELECT region_name FROM region', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -66,39 +52,48 @@ router.get('/document-type', (req, res) => {
   });
 });
 
-// get months
+// CORRECT ORDER
 router.get('/months', (req, res) => {
   const query = `
     SELECT DISTINCT 
       DATE_FORMAT(created_at, '%Y-%m') AS value,
       DATE_FORMAT(created_at, '%M %Y') AS label
-    FROM risk_register
+    FROM rca
     ORDER BY value DESC
   `;
   db.query(query, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(results); // [{ value: "2024-07", label: "July 2024" }, ...]
+    res.json(results);
+  });
+});
+
+router.get('/:id', (req, res) => {
+  const { id } = req.params;
+  db.query('SELECT * FROM rca WHERE rca_id = ?', [id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (results.length === 0) return res.status(404).json({ message: 'RCA not found' });
+    res.json(results[0]);
   });
 });
 
 // POST RCA with optional file
-router.post('/', upload.single('action_file'), (req, res) => {
-  const { region, reported_by, root_cause } = req.body;
+router.post('/', upload.single('upload'), (req, res) => {
+  const { region, reported_by, root_cause, type } = req.body;
   const action_file = req.file ? req.file.filename : null;
 
-  if (!region || !reported_by || !root_cause) {
+  if (!region || !reported_by || !root_cause || !type) {
     return res.status(400).json({ error: 'All fields except file are required' });
   }
 
   const sql = `
-    INSERT INTO rca (region, reported_by, root_cause, action_file)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO rca (region, reported_by, root_cause, type, action_file, created_at)
+    VALUES (?, ?, ?, ?, ?, NOW())
   `;
-  const values = [region, reported_by, root_cause, action_file];
+  const values = [region, reported_by, root_cause, type, action_file];
 
   db.query(sql, values, (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.status(201).json({ message: 'RCA entry created successfully', id: result.insertId });
+    res.status(201).json({ message: 'RCA entry created successfully', filename: action_file, id: result.insertId });
   });
 });
 
@@ -110,5 +105,8 @@ router.delete('/:id', (req, res) => {
     res.json({ message: 'RCA deleted successfully' });
   });
 });
+
+
+
 
 module.exports = router;

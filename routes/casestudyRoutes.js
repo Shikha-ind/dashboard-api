@@ -23,7 +23,7 @@ router.get('/', (req, res) => {
     SELECT cs.*, dt.iconUrl
     FROM case_study cs
     LEFT JOIN document_type dt ON cs.type = dt.document_name
-  `;
+  ORDER BY created_at DESC `;
 
 
   db.query(sql, (err, results) => {

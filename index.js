@@ -12,19 +12,27 @@ const aspireRoutes = require('./routes/aspireRoutes');
 const caseStudyRoutes = require('./routes/casestudyRoutes');
 const riskRoutes = require('./routes/riskRegisterRoutes');
 const rcaRoutes = require('./routes/rcaRoutes');
+const issuesTrackerRoutes = require('./routes/issuesTrackerRoutes');
+const projectReportsRoutes = require('./routes/projectReportRoutes');
+const revenueRoutes = require('./routes/revenueRoutes');
 
 const app = express();
 const PORT = 4000;
 
 // Middlewares
 app.use(cors());
+//if needed
+app.use(cors({
+  origin: '*', // or specify exact frontend origin
+  credentials: true
+}));
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // Static folder for serving uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/uploads/rca', express.static('uploads/rca'));
+app.use('/uploads/rca', express.static(path.join(__dirname, 'uploads', 'rca')));
 
 // API Routes
 app.use('/api/users', userRoutes);
@@ -35,6 +43,9 @@ app.use('/api/aspire', aspireRoutes);
 app.use('/api/case-studies', caseStudyRoutes);
 app.use('/api/risk-register', riskRoutes);
 app.use('/api/rca', rcaRoutes);
+app.use('/api/issues-tracker', issuesTrackerRoutes);
+app.use('/api/projects-reports', projectReportsRoutes);
+app.use('/api/revenue', revenueRoutes);
 
 // Server start
 app.listen(PORT, () => {
