@@ -57,7 +57,7 @@ router.get('/months', (req, res) => {
   const query = `
     SELECT DISTINCT 
       DATE_FORMAT(created_at, '%Y-%m') AS value,
-      DATE_FORMAT(created_at, '%M %Y') AS label
+      DATE_FORMAT(created_at, '%M') AS label
     FROM rca
     ORDER BY value DESC
   `;
